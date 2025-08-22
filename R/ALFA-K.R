@@ -370,6 +370,14 @@ solve_fitness_bootstrap <- function(data, minobs, nboot = 1000, epsilon = 1e-6, 
                              current_num_species, current_num_timepoints,
                              current_epsilon, current_n0, current_nb, 
                              current_passage_times, current_nn_info) { # Renamed arguments
+    tryCatch({
+      if (length(current_fq) < 2) {
+        stop("Not enough frequent karyotypes for fitness estimation")
+      }
+    }, error = function(e) {
+      warning(paste("Bootstrap iteration", b_iter_idx, "skipped due to error:", e$message))
+      return(NULL)
+    })
     boot_data <- bootstrap_counts(current_data$x) # Bootstrap from original full data
     x <- apply(boot_data[current_fq, , drop = FALSE], 2, function(col) { # Subset fq after bootstrap
       s <- sum(col)
