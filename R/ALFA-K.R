@@ -350,7 +350,7 @@ find_birth_times <- function(opt_res, time_range, minF) {
 #' @noRd
 solve_fitness_bootstrap <- function(data, minobs, nboot = 1000, epsilon = 1e-6, pm = 0.00005,
                                     n0, nb, passage_times = NULL) {
-  fq <- rownames(data$x)[rowSums(data$x) > minobs]
+  fq <- rownames(data$x)[rowSums(data$x) >= minobs]
   nn_info_list <- gen_nn_info(fq, pm) # Renamed 'nn' to 'nn_info_list' for clarity
   if (length(nn_info_list) > 0 && !is.null(nn_info_list[[1]]$ni)) { # Check if naming is needed
     names(nn_info_list) <- sapply(nn_info_list, function(nni) nni$ni)
