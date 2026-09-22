@@ -894,7 +894,7 @@ test_that("birth-time fallback keeps neighbour estimation finite when roots are 
   expect_true(all(is.finite(res$nn_fitness)))
 })
 
-test_that("xval defaults to marginal column-wise bootstrap sampling", {
+test_that("xval saves prediction pairs when predict returns a named matrix", {
   fq_boot <- list(
     final_fitness = matrix(
       c(1, 10, 100,
@@ -913,10 +913,17 @@ test_that("xval defaults to marginal column-wise bootstrap sampling", {
         {
           set.seed(123)
           res <- alfakR:::xval(fq_boot)
-          expect_true(is.numeric(res) && length(res) == 1)
+          expect_type(res, "list")
+          expect_true(is.numeric(res$R2R) && length(res$R2R) == 1)
+          expect_gt(length(res$predictions), 0L)
+          expect_equal(length(res$predictions), length(res$observations))
+          expect_equal(nrow(res$xval_data), length(res$predictions))
+          expect_equal(res$xval_data$prediction, unname(res$predictions))
+          expect_equal(res$xval_data$observation, unname(res$observations))
         },
         predict = function(object, x, ...) {
-          rep(mean(object$train_f), nrow(x))
+          matrix(rep(mean(object$train_f), nrow(x)), ncol = 1,
+                 dimnames = list(NULL, "krig_prediction"))
         },
         .package = "stats"
       )
@@ -1402,7 +1409,7 @@ test_that("softmax is stable for large logits and rejects non-finite values", {
   expect_error(alfakR:::softmax(c(0, Inf)), "non-finite logits")
 })
 
-test_that("alfak saves xval.Rds as a scalar R2R for downstream compatibility", {
+test_that("alfak saves full xval.Rds while returning scalar R2R for compatibility", {
   yi <- list(
     x = make_counts(
       c(10, 12,
@@ -1432,7 +1439,12 @@ test_that("alfak saves xval.Rds as a scalar R2R for downstream compatibility", {
     krig_stable_mean = NULL,
     krig_stable_median = NULL
   )
-  xval_stub <- 0.42
+  xval_stub <- list(
+    R2R = 0.42,
+    predictions = stats::setNames(0.1, "2.2.2"),
+    observations = stats::setNames(0.2, "2.2.2"),
+    xval_data = data.frame(k = "2.2.2", observation = 0.2, prediction = 0.1)
+  )
   outdir <- file.path(tempdir(), "alfak_xval_scalar")
   unlink(outdir, recursive = TRUE)
 
@@ -1450,7 +1462,8 @@ test_that("alfak saves xval.Rds as a scalar R2R for downstream compatibility", {
       ))
       saved <- readRDS(file.path(outdir, "xval.Rds"))
       expect_identical(returned, 0.42)
-      expect_identical(saved, 0.42)
+      expect_type(saved, "list")
+      expect_identical(saved$R2R, 0.42)
     },
     solve_fitness_bootstrap = function(...) fq_boot_stub,
     fitKrig = function(...) landscape_stub,
@@ -1547,7 +1560,9 @@ test_that("constant-response cross-validation now follows upstream NaN semantics
     },
     .package = "fields"
   )
-  expect_true(is.numeric(res) && length(res) == 1 && is.nan(res))
+  expect_type(res, "list")
+  expect_true(is.numeric(res$R2R) && length(res$R2R) == 1 && is.nan(res$R2R))
+  expect_equal(length(res$predictions), length(res$observations))
 })
 
 test_that("alfak stops when Krig fitting fails during xval", {
